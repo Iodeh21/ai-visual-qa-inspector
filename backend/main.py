@@ -3,6 +3,13 @@ import io
 import json
 import os
 
+from contextlib import asynccontextmanager
+from database import (
+    init_db,
+    save_inspection,
+    get_inspections,
+    get_inspection,
+)
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,10 +28,17 @@ SUPPORTED_IMAGES = {
     "WEBP": "image/webp",
 }
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="AI Visual QA Inspector",
-    version="0.2.0",
+    version="0.3.0",
     description="Local AI-powered screenshot inspection API",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -220,10 +234,44 @@ Do not include Markdown formatting.
             if not isinstance(issue.get("description"), str):
                 raise ValueError("Invalid issue description")
 
-        return result
+        inspection_id = save_inspection(
+            filename=image.filename or "unnamed.png",
+            expected_content=expected_content,
+            result=result,
+        )
+
+        return {
+            **result,
+            "inspection_id": inspection_id,
+        }
 
     except (json.JSONDecodeError, ValueError):
         raise HTTPException(
             status_code=502,
             detail="AI returned an invalid inspection result.",
         )
+
+@app.get("/api/inspections")
+def list_inspections(limit: int = 50):
+    if limit < 1 or limit > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Limit must be between 1 and 100.",
+        )
+
+    return {
+        "inspections": get_inspections(limit)
+    }
+
+
+@app.get("/api/inspections/{inspection_id}")
+def retrieve_inspection(inspection_id: int):
+    inspection = get_inspection(inspection_id)
+
+    if inspection is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Inspection not found.",
+        )
+
+    return inspection
