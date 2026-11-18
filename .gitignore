@@ -23,3 +23,32 @@ Thumbs.db
 *.sqlite3
 
 backend/test_jackpot.png
+
+# Playwright test output
+playwright-report/
+test-results/
+
+
+# Python and local environments
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Secrets and databases
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+
+# Frontend dependencies
+node_modules/
+dist/
+
+# Playwright outputs
+playwright-report/
+test-results/
+
+# Generated local screenshot files
+backend/test_jackpot.png
